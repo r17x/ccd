@@ -7,12 +7,34 @@ const noOp = () => { };
 const nuLL = () => null;
 
 const API = {
+  ping: "/Mobileapi/index",
   auth: "/Mobileapi/auth",
   lastCheckIn: "/Mobileapi/LastCheckIndeatils",
   checkInOROut: (token) => `/Mobileapi/CheckInPost?token=${token}`,
 };
 
-const checkIn = ({ token, latlng, ...payload }) =>
+const ping = ({ token, UDID = "" }) => {
+  setTokenIndicator('yellow')
+
+  fetch(API.ping, {
+    method: "POST",
+    body: JSON.stringify({
+      token,
+      UDID
+    }),
+  }).then(r => r.json()).then(r => {
+    if (r.status === 1) {
+      setTokenIndicator('green')
+      return r
+    }
+    throw new Error(r)
+  }).catch(() => {
+    setTokenIndicator('red')
+  })
+}
+
+const checkIn = ({ token, latlng, ...payload }) => {
+  toggleCheckInBtn(true)
   fetch(API.checkInOROut(token), {
     method: "POST",
     body: JSON.stringify({
@@ -29,7 +51,10 @@ const checkIn = ({ token, latlng, ...payload }) =>
   }).then(r => r.json()).catch(() => {
     log('checkin error')
     return null
+  }).finally(() => {
+    toggleCheckInBtn(false)
   });
+}
 
 const checkOut = ({ token, ...payload }) =>
   fetch(API.lastCheckIn, {
@@ -131,6 +156,9 @@ footerFloat.style.background = "var(--primary-color)";
 footerFloat.className = footer.className;
 footerFloat.style.position = "fixed";
 footerFloat.id = "checkIn";
+footerFloat.style.alignItems = 'center'
+footerFloat.style.justifyContent = 'center'
+footerFloat.style.display = 'flex'
 
 const inputQr = document.createElement("input");
 inputQr.className = "text-input-element";
@@ -151,6 +179,9 @@ inputLatLng.addEventListener("change", (e) => {
 
 const checkInBtn = document.createElement("button");
 checkInBtn.disabled = true;
+function toggleCheckInBtn(really) {
+  checkInBtn.disabled = really
+}
 checkInBtn.className = "btn btn-outline";
 checkInBtn.appendChild(document.createTextNode("Check IN"));
 checkInBtn.addEventListener("click", () => {
@@ -163,30 +194,61 @@ checkInBtn.addEventListener("click", () => {
 });
 
 const checkOutBtn = document.createElement("button");
+function toggleCheckOutBtn(really) {
+  checkOutBtn.disabled = really
+}
 checkOutBtn.className = "btn btn-secondary";
 checkOutBtn.appendChild(document.createTextNode("Check OUT"));
 checkOutBtn.addEventListener("click", () => {
   // getOptions('qrcode', 'lists').then(({ qrcode }) => getToken(qrcode)).then(console.info)
 });
 
+
+const tokenIndicator = document.createElement('span')
+
+tokenIndicator.style.width = '20px'
+tokenIndicator.style.height = '20px'
+tokenIndicator.style.backgroundColor = 'red'
+tokenIndicator.style.border = '1px solid #ddddd'
+
+function setTokenIndicator(color) {
+  tokenIndicator.style.backgroundColor = color
+}
+
+const footerInFloat = document.createElement('div')
+
+footerInFloat.style.display = 'flex';
+footerInFloat.style.alignItems = 'center'
+footerInFloat.style.justifyContent = 'space-evenly'
+footerInFloat.style.width = '50vw'
+
 Promise.resolve()
   .then(() => {
     document.body.append(footerFloat);
   })
   .then(() => {
-    footerFloat.append(inputQr);
-    footerFloat.append(inputLatLng);
-    footerFloat.append(checkInBtn);
-    footerFloat.append(checkOutBtn);
+    footerFloat.append(footerInFloat)
+    footerInFloat.append(tokenIndicator)
+    footerInFloat.append(inputQr);
+    footerInFloat.append(inputLatLng);
+    footerInFloat.append(checkInBtn);
+    footerInFloat.append(checkOutBtn);
   });
 
 // prefilled input
 const prefilled = () => {
+  let token
   Storage.get("latlng", "user").then(({ latlng, user }) => {
     console.log({ user });
+    setTokenIndicator('yello')
+    token = user.token
     inputLatLng.value = latlng || "";
     checkInBtn.disabled = !Boolean(user.token);
   });
+
+  setInterval(() => {
+    ping({ token })
+  }, 1000 * 15)
 };
 
 prefilled();
