@@ -26,6 +26,9 @@ const checkIn = ({ token, latlng, ...payload }) =>
       udid: "",
       in_out: 1,
     }),
+  }).then(r => r.json()).catch(() => {
+    log('checkin error')
+    return null
   });
 
 const checkOut = ({ token, ...payload }) =>
