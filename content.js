@@ -67,7 +67,10 @@ const checkOut = ({ token, ...payload }) =>
         Promise.resolve(last.id),
         fetch(API.checkInOROut(token), {
           method: "POST",
-          body: JSON.stringify({ checkin_id: last.id, ...payload }),
+          body: JSON.stringify({
+            in_out: 2, "udid": "", "location_type": 2,
+            checkin_id: last.id, token, ...payload
+          }),
         })
           .then((r) => r.json())
           .catch(() => null),
@@ -200,7 +203,12 @@ function toggleCheckOutBtn(really) {
 checkOutBtn.className = "btn btn-secondary";
 checkOutBtn.appendChild(document.createTextNode("Check OUT"));
 checkOutBtn.addEventListener("click", () => {
-  // getOptions('qrcode', 'lists').then(({ qrcode }) => getToken(qrcode)).then(console.info)
+  Storage.get("user").then(({ user }) =>
+    checkOut({
+      token: user.token,
+    }),
+  );
+
 });
 
 
@@ -237,18 +245,33 @@ Promise.resolve()
 
 // prefilled input
 const prefilled = () => {
-  let token
-  Storage.get("latlng", "user").then(({ latlng, user }) => {
-    console.log({ user });
-    setTokenIndicator('yello')
-    token = user.token
-    inputLatLng.value = latlng || "";
-    checkInBtn.disabled = !Boolean(user.token);
-  });
+  let task
+  Storage.get("latlng", "user")
+    .then(({ latlng, user }) => {
+      if (user && user.token) return { latlng, user }
+      throw new Error('user not found')
+    })
+    .then(({ latlng, user }) => {
 
-  setInterval(() => {
-    ping({ token })
-  }, 1000 * 15)
+      console.log({ user });
+
+      setTokenIndicator('yello')
+      token = user.token
+      inputLatLng.value = latlng || "";
+      checkInBtn.disabled = !Boolean(user.token);
+
+      task = setInterval(() => {
+        ping({ token: user.token })
+      }, 1000 * 15)
+
+
+    }).catch(() => {
+      if (task) {
+        clearInterval(task)
+      }
+    });
+
 };
 
 prefilled();
+
